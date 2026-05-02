@@ -3,58 +3,64 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
+	"net"
 	"net/http"
-	"strconv"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/Romasmi/s-shop-microservices/internal/routes"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
+	grpcint "github.com/Romasmi/s-shop-microservices/internal/interface/grpc"
+	httpint "github.com/Romasmi/s-shop-microservices/internal/interface/http"
 )
 
 type Api struct {
-	App    *App
-	router *mux.Router
-	server *http.Server
+	*App
 }
 
 func NewApi(app *App) *Api {
-	api := &Api{App: app}
-	api.init()
-	return api
-}
-
-func (a *Api) init() {
-	router := mux.NewRouter()
-	routes.RegisterRoutes(router, a.App)
-	a.router = router
+	return &Api{App: app}
 }
 
 func (a *Api) Run() error {
-	credentials := handlers.AllowCredentials()
-	methods := handlers.AllowedMethods([]string{
-		http.MethodGet,
-		http.MethodPost,
-		http.MethodPut,
-		http.MethodDelete,
-		http.MethodOptions,
-	})
-	headers := handlers.AllowedHeaders([]string{
-		"Content-Type",
-		"Authorization",
-	})
-	origins := handlers.AllowedOrigins([]string{"*"})
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	a.server = &http.Server{
-		Addr:    ":" + strconv.Itoa(int(a.App.Config.Server.Port)),
-		Handler: handlers.CORS(credentials, methods, origins, headers)(a.router),
+	// gRPC Server
+	grpcServer := grpcint.NewServer(a.App)
+
+	grpcAddr := fmt.Sprintf(":%d", a.Cfg.Server.GRPCPort)
+	lis, err := net.Listen("tcp", grpcAddr)
+	if err != nil {
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		return err
+	go func() {
+		log.Printf("Starting gRPC server on %s", grpcAddr)
+		if err := grpcServer.Serve(lis); err != nil {
+			log.Printf("gRPC server error: %v", err)
+		}
+	}()
+
+	// gRPC Gateway
+	gwServer, err := httpint.NewGatewayServer(grpcAddr, a.Cfg.Server.HTTPPort)
+	if err != nil {
+		return fmt.Errorf("failed to create gateway server: %w", err)
+	}
+
+	go func() {
+		log.Printf("Starting HTTP gateway on %s", gwServer.Addr)
+		if err := gwServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("HTTP gateway error: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+	log.Println("Shutting down API...")
+	grpcServer.GracefulStop()
+	if err := gwServer.Shutdown(context.Background()); err != nil {
+		log.Printf("HTTP gateway shutdown error: %v", err)
 	}
 	return nil
-}
-
-func (a *Api) Shutdown(ctx context.Context) error {
-	return a.App.Shutdown(ctx)
 }

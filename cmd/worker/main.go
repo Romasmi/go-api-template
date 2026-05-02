@@ -19,8 +19,8 @@ func main() {
 	}
 	defer application.Close()
 
-	api := app.NewApi(application)
-	if err := api.Run(); err != nil {
-		log.Fatalf("API error: %v", err)
+	worker := app.NewWorker(application)
+	if err := worker.Run(); err != nil {
+		log.Fatalf("Worker error: %v", err)
 	}
 }

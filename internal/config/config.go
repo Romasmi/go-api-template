@@ -11,6 +11,7 @@ import (
 type Config struct {
 	Db             Database
 	Server         Server
+	Kafka          Kafka
 	AuthServiceURL string `mapstructure:"auth_service_url"`
 }
 
@@ -23,7 +24,14 @@ type Database struct {
 }
 
 type Server struct {
-	Port uint
+	GRPCPort uint `mapstructure:"grpc_port"`
+	HTTPPort uint `mapstructure:"http_port"`
+}
+
+type Kafka struct {
+	Brokers []string `mapstructure:"brokers"`
+	Topic   string   `mapstructure:"topic"`
+	GroupID string   `mapstructure:"group_id"`
 }
 
 func bindEnvRecursive(viperInstance *viper.Viper, prefix string, val reflect.Value) error {
@@ -34,7 +42,7 @@ func bindEnvRecursive(viperInstance *viper.Viper, prefix string, val reflect.Val
 			tag = FirstCharToLowerCase(field.Name)
 		}
 
-		fieldPath := prefix
+		var fieldPath string
 		if prefix != "" {
 			fieldPath = prefix + "." + tag
 		} else {

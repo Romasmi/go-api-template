@@ -1,0 +1,22 @@
+# AI Rules for Go Microservice Template
+
+This file provides rules for AI agents (specifically Cursor) to follow. 
+For Junie-specific instructions, see the `.junie/` directory.
+
+## Core Instructions
+- Always follow Clean Architecture and DDD principles.
+- Refer to the detailed skill guides in the `skills/` directory for specific implementation patterns.
+
+## Skills Reference
+- [Architecture](skills/architecture.md): Layers and dependency rules.
+- [API](skills/api.md): Protobuf and code generation.
+- [UseCase](skills/usecase.md): Generic UseCase pattern and registration.
+- [Interface](skills/interface.md): gRPC, CLI, and Kafka adapters.
+- [Infrastructure](skills/infrastructure.md): DB and Kafka implementations.
+- [Domain](skills/domain.md): Entities and pure business logic.
+
+## Key Rules
+1. **API-First**: Edit `.proto` files first, then run `make generate`.
+2. **UseCase Pattern**: Implement `UseCase[I, O]` and register it in `internal/app/app.go`.
+3. **No Direct Logic in Handlers**: Logic must reside in the UseCase layer.
+4. **Dependency Injection**: Use constructors and interfaces.

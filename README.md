@@ -16,6 +16,7 @@ A modern Go microservice template following DDD and Clean Architecture principle
   - Proto schema at `/proto`
 - **Environment Configuration**: Managed via Viper (supports `.yaml` and env vars).
 - **Local Development**: Docker Compose for DB and Kafka.
+- **Developer & AI Skills**: Specialized documentation for AI agents (Junie, Cursor) and developers in the `skills/` and `.junie/` directories.
 
 ## Project Structure
 
@@ -36,6 +37,8 @@ internal/
   infrastructure/       # External implementations (DB, Kafka)
   interface/            # Adapters (gRPC, HTTP, Kafka Handlers)
 migrations/             # Database migrations
+skills/                 # AI & Developer skills (patterns and rules)
+.junie/                 # Junie-specific AI guidelines
 ```
 
 ## Getting Started

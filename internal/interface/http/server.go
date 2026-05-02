@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 
 	api "github.com/Romasmi/s-shop-microservices/internal/api"
+	"github.com/Romasmi/s-shop-microservices/internal/interface/http/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -31,10 +33,11 @@ func NewGatewayServer(grpcAddr string, httpPort uint) (*http.Server, error) {
 	))
 	mainMux.HandleFunc("/swagger-static/", serveSwaggerStatic)
 	mainMux.HandleFunc("/proto/", serveProto)
+	mainMux.Handle("/metrics", promhttp.Handler())
 
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", httpPort),
-		Handler: mainMux,
+		Handler: middleware.MetricsMiddleware(mainMux),
 	}, nil
 }
 

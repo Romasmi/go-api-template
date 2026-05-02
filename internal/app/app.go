@@ -70,3 +70,10 @@ func (a *App) GetHandler(id usecase.UseCaseID) usecase.Handler {
 func (a *App) GetConfig() *config.Config {
 	return a.Cfg
 }
+
+func (a *App) Ping(ctx context.Context) error {
+	if a.Pool == nil {
+		return fmt.Errorf("database pool is not initialized")
+	}
+	return a.Pool.Ping(ctx)
+}

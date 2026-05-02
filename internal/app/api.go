@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -37,30 +37,30 @@ func (a *Api) Run() error {
 	}
 
 	go func() {
-		log.Printf("Starting gRPC server on %s", grpcAddr)
+		slog.Info("Starting gRPC server", "addr", grpcAddr)
 		if err := grpcServer.Serve(lis); err != nil {
-			log.Printf("gRPC server error: %v", err)
+			slog.Error("gRPC server error", "error", err)
 		}
 	}()
 
 	// gRPC Gateway
-	gwServer, err := httpint.NewGatewayServer(grpcAddr, a.Cfg.Server.HTTPPort)
+	gwServer, err := httpint.NewGatewayServer(a.App, grpcAddr, a.Cfg.Server.HTTPPort)
 	if err != nil {
 		return fmt.Errorf("failed to create gateway server: %w", err)
 	}
 
 	go func() {
-		log.Printf("Starting HTTP gateway on %s", gwServer.Addr)
+		slog.Info("Starting HTTP gateway", "addr", gwServer.Addr)
 		if err := gwServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("HTTP gateway error: %v", err)
+			slog.Error("HTTP gateway error", "error", err)
 		}
 	}()
 
 	<-ctx.Done()
-	log.Println("Shutting down API...")
+	slog.Info("Shutting down API...")
 	grpcServer.GracefulStop()
 	if err := gwServer.Shutdown(context.Background()); err != nil {
-		log.Printf("HTTP gateway shutdown error: %v", err)
+		slog.Error("HTTP gateway shutdown error", "error", err)
 	}
 	return nil
 }

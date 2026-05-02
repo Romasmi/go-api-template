@@ -2,7 +2,7 @@ package app
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -28,6 +28,6 @@ func (w *Worker) Run() error {
 	go consumer.Start(ctx)
 
 	<-ctx.Done()
-	log.Println("Shutting down worker...")
+	slog.Info("Shutting down worker...")
 	return nil
 }

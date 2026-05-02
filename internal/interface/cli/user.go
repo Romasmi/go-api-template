@@ -3,7 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 
 	"github.com/Romasmi/s-shop-microservices/internal/domain/user"
 	"github.com/Romasmi/s-shop-microservices/internal/usecase"
@@ -33,7 +34,8 @@ var createUserCmd = &cobra.Command{
 		handler := deps.GetHandler(usecase.UseCaseCreateUser)
 		res, err := handler.Do(context.Background(), useruc.CreateUserInput{Name: name, Email: email})
 		if err != nil {
-			log.Fatalf("Failed to create user: %v", err)
+			slog.Error("Failed to create user", "error", err)
+			os.Exit(1)
 		}
 
 		u := res.(*user.User)

@@ -1,16 +1,14 @@
 server:
-  port: "8080"
-  readTimeout: "15s"
-  writeTimeout: "15s"
-  idleTimeout: "60s"
-
+  grpc_port: 50051
+  http_port: 8080
 database:
-  url: postgres://user:password@db.docker.localhost:5432/go_rest_api?sslmode=disable
-  maxConnections: 10
-  minConnections: 2
-  maxConnLifetime: "1h"
-  maxConnIdleTime: "30m"
-
-jwt:
-  secret: your-secret-key-change-in-production
-  expirationTtl: "24h"
+  host: localhost
+  port: "5432"
+  name: shop
+  user: user
+  password: password
+kafka:
+  brokers: ["localhost:9092"]
+  topic: "user-created"
+  group_id: "user-service-group"
+auth_service_url: "http://localhost:8081"

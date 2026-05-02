@@ -1,144 +1,125 @@
-# Go REST API Template
+# Go Microservice Template
 
-A comprehensive template for building RESTful APIs in Go. This template includes everything you need to get started with building a production-ready API.
+A modern Go microservice template following DDD and Clean Architecture principles.
 
 ## Features
 
-- **Routing**: Using [Chi](https://github.com/go-chi/chi) for flexible and fast HTTP routing
-- **Authentication**: JWT-based authentication with middleware
-- **Database**: PostgreSQL integration with connection pooling
-- **Migrations**: Database migrations using [golang-migrate](https://github.com/golang-migrate/migrate)
-- **CRUD Operations**: Example CRUD operations for a User entity
-- **Validation**: Request validation using [validator](https://github.com/go-playground/validator)
-- **Documentation**: API documentation using Swagger/OpenAPI
-- **Configuration**: Environment-based configuration with sensible defaults
-- **Logging**: Structured logging
-- **Error Handling**: Consistent error handling and responses
-- **Middleware**: Common middleware for request ID, real IP, logging, recovery, timeouts, and CORS
-- **Graceful Shutdown**: Graceful shutdown of the HTTP server
+- **gRPC & gRPC Gateway**: Primary communication via gRPC with REST support.
+- **Kafka**: Integrated event-driven communication (Producer/Consumer).
+- **DDD & Clean Architecture**: Organized into Domain, Usecase, Infrastructure, and Interface layers.
+- **Multiple Entrypoints**:
+  - `cmd/api`: Runs gRPC and HTTP Gateway servers.
+  - `cmd/worker`: Runs background Kafka consumers.
+  - `cmd/cli`: Command-line interface using Cobra.
+- **Documentation**:
+  - Swagger UI at `/swagger`
+  - Proto schema at `/proto`
+- **Environment Configuration**: Managed via Viper (supports `.yaml` and env vars).
+- **Local Development**: Docker Compose for DB and Kafka.
 
 ## Project Structure
 
-```
-.
-├── api/
-│   └── swagger/         # Swagger/OpenAPI specifications
-├── cmd/
-│   └── api/             # Application entry points
-│       └── main.go      # Main application
-├── docs/                # Documentation
-├── internal/            # Private application code
-│   ├── config/          # Configuration package
-│   ├── database/        # Database connection and migrations
-│   ├── handlers/        # HTTP handlers
-│   ├── middleware/      # HTTP middleware
-│   ├── models/          # Data models
-│   ├── repository/      # Data access layer
-│   └── services/        # Business logic
-├── migrations/          # Database migrations
-├── pkg/                 # Public packages
-│   ├── logger/          # Logging package
-│   └── validator/       # Validation package
+```text
+api/                    # Protocol Buffer definitions
+cmd/                    # Application entry points
+  api/                  # gRPC & Gateway server
+  worker/               # Kafka consumer
+  cli/                  # Command line interface
+configs/                # Configuration files
+deployments/            # Docker Compose and K8s manifests
+internal/
+  api/                  # Generated gRPC & Gateway code
+  app/                  # Application bootstrap
+  config/               # Configuration loading
+  domain/               # Domain entities and interfaces (DDD)
+  usecase/              # Business logic (Application Services)
+  infrastructure/       # External implementations (DB, Kafka)
+  interface/            # Adapters (gRPC, HTTP, Kafka Handlers)
+migrations/             # Database migrations
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.21 or higher
-- PostgreSQL
-- Docker (optional)
+- Go 1.25+
+- Docker & Docker Compose
+- `buf` (for code generation)
 
-### Installation
+### Setup
 
-1. Clone the repository:
+1. **Clone the repository**:
+   ```bash
+   git clone <repo-url>
+   cd go-api-template
+   ```
 
-```bash
-git clone https://github.com/Romasmi/go-rest-api-template.git
-cd go-rest-api-template
-```
+2. **Start local infrastructure**:
+   ```bash
+   make compose-up
+   ```
 
-2. Install dependencies:
+3. **Generate code**:
+   ```bash
+   make generate
+   ```
 
-```bash
-go mod download
-```
+4. **Run migrations**:
+   ```bash
+   make migrate-up
+   ```
 
-3. Create a `override.yaml` file (default values are in config.yaml) or set ENV variables:
+### Running the services
 
-```bash
-cp config.yaml override.yaml
-```
+- **API Server**: `make run-api`
+- **Worker**: `make run-worker`
+- **CLI**: `make run-cli user create "John Doe" "john@example.com"`
 
-### Running the API
+## How to Add a New Feature
 
-1. Start PostgreSQL:
+1. **Define Proto**: Add a new `.proto` file in `api/` or update existing ones.
+2. **Generate Code**: Run `make generate`.
+3. **Domain Layer**: Define your entity in `internal/domain/`.
+4. **Infrastructure Layer**: Implement the repository interface in `internal/infrastructure/db/postgres/`.
+5. **Usecase Layer**: 
+   - Implement the business logic in a new struct in `internal/usecase/your_domain/`.
+   - The struct should implement the `usecase.UseCase[I, O]` interface with a `Do` method.
+6. **Register Usecase**: 
+   - Add a new entry to the `UseCaseID` enum in `internal/usecase/interface.go`.
+   - Register your usecase in `internal/app/app.go` within the `registerHandlers` method by adding it to the `Handlers` map using `usecase.NewHandler`.
+7. **Interface Layer**: 
+   - Use the registered handler in gRPC handler (`internal/interface/grpc/`) by calling `app.GetHandler(usecase.YourUseCaseID)`.
+   - (Optional) Register it in gRPC gateway in `internal/interface/http/server.go`.
+   - (Optional) Add Kafka consumer in `internal/interface/kafka/` and register in `internal/app/worker.go`.
+   - (Optional) Add CLI command in `internal/interface/cli/` and register in `internal/app/cli.go`.
 
-```bash
-# Using Docker
-docker run --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=go_rest_api -p 5432:5432 -d postgres
-```
+## API Documentation
 
-2. Run database migrations:
+- **Swagger UI**: Rendered UI is available at `http://localhost:8080/swagger/`. It uses the generated Swagger JSON files.
+- **Proto Files**: Served at `http://localhost:8080/proto/`.
 
-```bash
-go run cmd/api/main.go migrate
-```
+## Event-Driven Flow Example
 
-3. Start the API:
+1. `cmd/api` receives a `CreateUser` request.
+2. `usecase` saves the user to PostgreSQL via `UserRepository`.
+3. `usecase` publishes a `UserCreated` event via `EventProducer`.
+4. `cmd/worker` (the consumer app) receives the event and logs it (or performs other actions like sending an email).
 
-```bash
-go run cmd/api/main.go
-```
+## CLI Examples
 
-4. Access the API at http://localhost:8080
-
-5. Access the Swagger documentation at http://localhost:8080/swagger/
-
-### API Endpoints
-
-#### Authentication
-
-- `POST /api/v1/auth/register` - Register a new user
-- `POST /api/v1/auth/login` - Login a user
-
-#### Users
-
-- `GET /api/v1/users` - List users (requires authentication)
-- `GET /api/v1/users/{id}` - Get a user by ID (requires authentication)
-- `PUT /api/v1/users/{id}` - Update a user (requires authentication)
-- `DELETE /api/v1/users/{id}` - Delete a user (requires authentication)
-
-#### Health Check
-
-- `GET /health` - Health check endpoint
-
-## Configuration
-
-The application can be configured using environment variables. See the `.env.example` file for available options.
-
-## Development
-
-### Adding a New Entity
-
-1. Create a new model in `internal/models/`
-2. Create a new repository in `internal/repository/`
-3. Create a new service in `internal/services/`
-4. Create a new handler in `internal/handlers/`
-5. Register the new handler in `cmd/api/main.go`
-
-### Adding a New Migration
-
-1. Create a new migration file in `migrations/`:
+The CLI provides management commands. 
 
 ```bash
-# Create a migration to add a new table
-touch migrations/000002_create_items_table.up.sql
-touch migrations/000002_create_items_table.down.sql
+# Create a user
+go run cmd/cli/main.go user create "Alice" "alice@example.com"
+
+# Reset password (example command)
+go run cmd/cli/main.go user reset-password "alice@example.com"
 ```
 
-2. Run the migration:
+## DDD and Clean Architecture
 
-```bash
-go run cmd/api/main.go migrate
-```
+- **Domain**: Contains entities and repository interfaces. No external dependencies.
+- **Usecase**: Implements business logic using domain entities and interfaces.
+- **Infrastructure**: Implements repository interfaces using specific technologies (PostgreSQL, Kafka).
+- **Interface**: Adapts external requests (gRPC, HTTP, Kafka) to usecases.

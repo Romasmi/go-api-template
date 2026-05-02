@@ -19,8 +19,8 @@ func main() {
 	}
 	defer application.Close()
 
-	api := app.NewApi(application)
-	if err := api.Run(); err != nil {
-		log.Fatalf("API error: %v", err)
+	cliApp := app.NewCli(application)
+	if err := cliApp.Run(); err != nil {
+		log.Fatalf("CLI error: %v", err)
 	}
 }

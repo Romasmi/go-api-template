@@ -8,13 +8,20 @@ import (
 	"path/filepath"
 
 	api "github.com/Romasmi/s-shop-microservices/internal/api"
+	"github.com/Romasmi/s-shop-microservices/internal/interface/http/middleware"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"log/slog"
 )
 
-func NewGatewayServer(grpcAddr string, httpPort uint) (*http.Server, error) {
+type ReadyChecker interface {
+	Ping(ctx context.Context) error
+}
+
+func NewGatewayServer(checker ReadyChecker, grpcAddr string, httpPort uint) (*http.Server, error) {
 	ctx := context.Background()
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
@@ -31,10 +38,27 @@ func NewGatewayServer(grpcAddr string, httpPort uint) (*http.Server, error) {
 	))
 	mainMux.HandleFunc("/swagger-static/", serveSwaggerStatic)
 	mainMux.HandleFunc("/proto/", serveProto)
+	mainMux.Handle("/metrics", promhttp.Handler())
+
+	mainMux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("OK"))
+	})
+
+	mainMux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
+		if err := checker.Ping(r.Context()); err != nil {
+			slog.Error("readiness check failed", "error", err)
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte("UNREADY"))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("READY"))
+	})
 
 	return &http.Server{
 		Addr:    fmt.Sprintf(":%d", httpPort),
-		Handler: mainMux,
+		Handler: middleware.MetricsMiddleware(mainMux),
 	}, nil
 }
 

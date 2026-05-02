@@ -22,7 +22,7 @@ services:
     networks:
       - go-rest-api
     env_file:
-      - ./.env
+      - .env
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.db.rule=Host(`db.docker.localhost`)"

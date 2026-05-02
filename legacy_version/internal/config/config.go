@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Romasmi/go-rest-api-template/internal/utils"
 	"github.com/spf13/viper"
 )
 
@@ -23,11 +22,7 @@ type ServerConfig struct {
 }
 
 type DatabaseConfig struct {
-	URL                   string
-	MaxConnections        uint
-	MinConnections        uint
-	MaxConnectionLifetime uint
-	MaxConnectionIdleTime uint
+	URL string
 }
 
 type JWTConfig struct {
@@ -40,7 +35,7 @@ func bindEnvRecursive(v *viper.Viper, prefix string, val reflect.Value) error {
 		field := val.Type().Field(i)
 		tag := field.Tag.Get("mapstructure")
 		if tag == "" {
-			tag = utils.FirstChatToLowerCase(field.Name)
+			tag = FirstChatToLowerCase(field.Name)
 		}
 
 		fieldPath := prefix
@@ -99,4 +94,9 @@ func LoadConfig(configPath string) (*Config, error) {
 		return nil, err
 	}
 	return &cfg, nil
+}
+
+func FirstChatToLowerCase(str string) string {
+	firstChar := str[:1]
+	return strings.ToLower(firstChar) + str[1:]
 }

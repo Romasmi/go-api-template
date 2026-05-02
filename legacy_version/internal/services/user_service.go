@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/Romasmi/go-rest-api-template/internal/utils"
+
+	"golang.org/x/crypto/bcrypt"
+
 	"strconv"
 
 	"github.com/Romasmi/go-rest-api-template/internal/middleware"
@@ -81,7 +83,7 @@ func (s *UserService) Login(ctx context.Context, login *models.UserLogin) (strin
 		return "", err
 	}
 
-	if !utils.CheckPassword(login.Password, user.PasswordHash) {
+	if !CheckPassword(login.Password, user.PasswordHash) {
 		return "", fmt.Errorf("invalid username or password")
 	}
 
@@ -108,4 +110,14 @@ func (s *UserService) Register(ctx context.Context, user *models.UserCreate) (st
 	}
 
 	return token, nil
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func CheckPassword(password, hash string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
 }

@@ -1,4 +1,4 @@
 .idea
-tmp/*
+legacy_version/tmp/.gitkeep
 !tmp/.gitkeep
 override.yaml

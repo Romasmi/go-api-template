@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/Romasmi/go-rest-api-template/internal/config"
-	"github.com/Romasmi/go-rest-api-template/internal/utils"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,10 +20,6 @@ func (c *DbConnection) Connect() error {
 	if err != nil {
 		return fmt.Errorf("unable to parse database URL: %w", err)
 	}
-	pgConfig.MaxConns = int32(c.Config.Database.MaxConnections)
-	pgConfig.MinConns = int32(c.Config.Database.MinConnections)
-	pgConfig.MaxConnLifetime = utils.MinutesToNanoseconds(c.Config.Database.MaxConnectionLifetime)
-	pgConfig.MaxConnIdleTime = utils.MinutesToNanoseconds(c.Config.Database.MaxConnectionIdleTime)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

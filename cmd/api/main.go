@@ -4,8 +4,8 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/Romasmi/s-shop-microservices/cmd/api/config"
 	"github.com/Romasmi/s-shop-microservices/internal/app"
-	"github.com/Romasmi/s-shop-microservices/internal/config"
 )
 
 func main() {
@@ -18,14 +18,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	application, err := app.NewApp(cfg)
+	appCfg := app.Config{
+		DBUser:       cfg.Db.User,
+		DBPassword:   cfg.Db.Password,
+		DBHost:       cfg.Db.Host,
+		DBPort:       cfg.Db.Port,
+		DBName:       cfg.Db.Name,
+		KafkaBrokers: cfg.Kafka.Brokers,
+		KafkaTopic:   cfg.Kafka.Topic,
+		KafkaGroupID: cfg.Kafka.GroupID,
+	}
+
+	application, err := app.NewApp(appCfg)
 	if err != nil {
 		slog.Error("Failed to initialize app", "error", err)
 		os.Exit(1)
 	}
 	defer application.Close()
 
-	api := app.NewApi(application)
+	api := app.NewApi(application, cfg.Server.GRPCPort, cfg.Server.HTTPPort)
 	if err := api.Run(); err != nil {
 		slog.Error("API error", "error", err)
 		os.Exit(1)

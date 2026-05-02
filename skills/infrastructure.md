@@ -16,5 +16,5 @@ Infrastructure layer handles technical implementation details for data storage a
 ## 3. Configuration
 - **Library**: Viper.
 - **Files**: `config.yaml` and environment variables.
-- **Implementation**: `internal/config/config.go`.
+- **Implementation**: `cmd/api/config/config.go`.
 - *Rule*: New configuration fields must be added to the `Config` struct and properly tagged with `mapstructure`.

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Romasmi/s-shop-microservices/internal/config"
 	"github.com/Romasmi/s-shop-microservices/internal/infrastructure/db/postgres"
 	infrakafka "github.com/Romasmi/s-shop-microservices/internal/infrastructure/kafka"
 	kafkaint "github.com/Romasmi/s-shop-microservices/internal/interface/kafka"
@@ -13,25 +12,37 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+type Config struct {
+	DBUser     string
+	DBPassword string
+	DBHost     string
+	DBPort     string
+	DBName     string
+
+	KafkaBrokers []string
+	KafkaTopic   string
+	KafkaGroupID string
+}
+
 type App struct {
-	Cfg       *config.Config
+	Cfg       Config
 	Pool      *pgxpool.Pool
 	Producer  useruc.EventProducer
 	Handlers  map[usecase.UseCaseID]usecase.Handler
 	Consumers []kafkaint.Consumer
 }
 
-func NewApp(cfg *config.Config) (*App, error) {
+func NewApp(cfg Config) (*App, error) {
 	ctx := context.Background()
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		cfg.Db.User, cfg.Db.Password, cfg.Db.Host, cfg.Db.Port, cfg.Db.Name)
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName)
 	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
-	producer := infrakafka.NewUserProducer(cfg.Kafka.Brokers, cfg.Kafka.Topic)
+	producer := infrakafka.NewUserProducer(cfg.KafkaBrokers, cfg.KafkaTopic)
 
 	app := &App{
 		Cfg:       cfg,
@@ -55,7 +66,7 @@ func (a *App) registerHandlers() {
 }
 
 func (a *App) registerConsumers() {
-	userConsumer := kafkaint.NewUserConsumer(a.Cfg.Kafka.Brokers, a.Cfg.Kafka.Topic, a.Cfg.Kafka.GroupID)
+	userConsumer := kafkaint.NewUserConsumer(a.Cfg.KafkaBrokers, a.Cfg.KafkaTopic, a.Cfg.KafkaGroupID)
 	a.Consumers = append(a.Consumers, userConsumer)
 }
 
@@ -79,7 +90,7 @@ func (a *App) GetHandler(id usecase.UseCaseID) usecase.Handler {
 	return a.Handlers[id]
 }
 
-func (a *App) GetConfig() *config.Config {
+func (a *App) GetConfig() Config {
 	return a.Cfg
 }
 

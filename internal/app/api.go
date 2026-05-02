@@ -17,10 +17,16 @@ import (
 
 type Api struct {
 	*App
+	grpcPort uint
+	httpPort uint
 }
 
-func NewApi(app *App) *Api {
-	return &Api{App: app}
+func NewApi(app *App, grpcPort, httpPort uint) *Api {
+	return &Api{
+		App:      app,
+		grpcPort: grpcPort,
+		httpPort: httpPort,
+	}
 }
 
 func (a *Api) Run() error {
@@ -30,7 +36,7 @@ func (a *Api) Run() error {
 	// gRPC Server
 	grpcServer := grpcint.NewServer(a.App)
 
-	grpcAddr := fmt.Sprintf(":%d", a.Cfg.Server.GRPCPort)
+	grpcAddr := fmt.Sprintf(":%d", a.grpcPort)
 	lis, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
@@ -44,7 +50,7 @@ func (a *Api) Run() error {
 	}()
 
 	// gRPC Gateway
-	gwServer, err := httpint.NewGatewayServer(a.App, grpcAddr, a.Cfg.Server.HTTPPort)
+	gwServer, err := httpint.NewGatewayServer(a.App, grpcAddr, a.httpPort)
 	if err != nil {
 		return fmt.Errorf("failed to create gateway server: %w", err)
 	}

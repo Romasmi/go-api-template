@@ -6,17 +6,19 @@ import (
 
 	"github.com/Romasmi/s-shop-microservices/internal/config"
 	"github.com/Romasmi/s-shop-microservices/internal/infrastructure/db/postgres"
-	"github.com/Romasmi/s-shop-microservices/internal/infrastructure/kafka"
+	infrakafka "github.com/Romasmi/s-shop-microservices/internal/infrastructure/kafka"
+	kafkaint "github.com/Romasmi/s-shop-microservices/internal/interface/kafka"
 	"github.com/Romasmi/s-shop-microservices/internal/usecase"
 	useruc "github.com/Romasmi/s-shop-microservices/internal/usecase/user"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type App struct {
-	Cfg      *config.Config
-	Pool     *pgxpool.Pool
-	Producer useruc.EventProducer
-	Handlers map[usecase.UseCaseID]usecase.Handler
+	Cfg       *config.Config
+	Pool      *pgxpool.Pool
+	Producer  useruc.EventProducer
+	Handlers  map[usecase.UseCaseID]usecase.Handler
+	Consumers []kafkaint.Consumer
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -29,16 +31,18 @@ func NewApp(cfg *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to connect to DB: %w", err)
 	}
 
-	producer := kafka.NewUserProducer(cfg.Kafka.Brokers, cfg.Kafka.Topic)
+	producer := infrakafka.NewUserProducer(cfg.Kafka.Brokers, cfg.Kafka.Topic)
 
 	app := &App{
-		Cfg:      cfg,
-		Pool:     pool,
-		Producer: producer,
-		Handlers: make(map[usecase.UseCaseID]usecase.Handler),
+		Cfg:       cfg,
+		Pool:      pool,
+		Producer:  producer,
+		Handlers:  make(map[usecase.UseCaseID]usecase.Handler),
+		Consumers: make([]kafkaint.Consumer, 0),
 	}
 
 	app.registerHandlers()
+	app.registerConsumers()
 
 	return app, nil
 }
@@ -48,6 +52,11 @@ func (a *App) registerHandlers() {
 
 	a.Handlers[usecase.UseCaseCreateUser] = usecase.NewHandler(useruc.NewCreateUserUseCase(repo, a.Producer))
 	a.Handlers[usecase.UseCaseGetUser] = usecase.NewHandler(useruc.NewGetUserUseCase(repo))
+}
+
+func (a *App) registerConsumers() {
+	userConsumer := kafkaint.NewUserConsumer(a.Cfg.Kafka.Brokers, a.Cfg.Kafka.Topic, a.Cfg.Kafka.GroupID)
+	a.Consumers = append(a.Consumers, userConsumer)
 }
 
 func (a *App) Close() {
@@ -60,6 +69,9 @@ func (a *App) Close() {
 		if closer, ok := a.Producer.(interface{ Close() error }); ok {
 			closer.Close()
 		}
+	}
+	for _, c := range a.Consumers {
+		c.Close()
 	}
 }
 

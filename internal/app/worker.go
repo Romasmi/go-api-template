@@ -6,8 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-
-	kafkaint "github.com/Romasmi/s-shop-microservices/internal/interface/kafka"
 )
 
 type Worker struct {
@@ -22,10 +20,9 @@ func (w *Worker) Run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	consumer := kafkaint.NewUserConsumer(w.Cfg.Kafka.Brokers, w.Cfg.Kafka.Topic, w.Cfg.Kafka.GroupID)
-	defer consumer.Close()
-
-	go consumer.Start(ctx)
+	for _, consumer := range w.App.Consumers {
+		go consumer.Start(ctx)
+	}
 
 	<-ctx.Done()
 	slog.Info("Shutting down worker...")
